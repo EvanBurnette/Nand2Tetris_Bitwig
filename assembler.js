@@ -3,13 +3,13 @@
 // A-instruction sets address register (A-register) with a value
 
 // C-instruction
-    // a bit (A/M selector bit)
-    // c bits (control bits c1-c6)
-    // d bits (destination bits)
-    // j bits (jump bits)
+// a bit (A/M selector bit)
+// c bits (control bits c1-c6)
+// d bits (destination bits)
+// j bits (jump bits)
 
-    // 111a   c1 c2 c3 c4  c5 c6 d1 d2  d3 j1 j2 j3
-    // AMsel  zD nD zA nA  f  no A  D   M  lt eq gt (compare to 0)
+// 111a   c1 c2 c3 c4  c5 c6 d1 d2  d3 j1 j2 j3
+// AMsel  zD nD zA nA  f  no A  D   M  lt eq gt (compare to 0)
 
 // @2       0000 0000 0000 0010
 // D=A      1110 1100 0001 0000
@@ -100,7 +100,7 @@ const comps = {
     'A-D': '000111',
     'D&A': '000000',
     'D|A': '010101',
-    
+
     'M': '110000',
     '!M': '110001',
     '-M': '110011',
@@ -113,64 +113,71 @@ const comps = {
     'D|M': '010101'
 };
 
-function lookupComps(query){
-    if (query.includes('M')){
+function lookupComps(query) {
+    if (query.includes('M')) {
         return `1${comps[query]}`;
     }
     return `0${comps[query]}`;
 };
 
-const assembly =
+const fs = require('node:fs');
+
+const assembly = process.argv[2] ? fs.readFileSync(process.argv[2], 'utf8') :
     `@42
     D=A
     @0 
     D;JGT`;
 
-const lines = assembly.split('\n').map(line=>line.trim());
+function assemble(assembly) {
+    const lines = assembly.split('\n').map(line => line.trim());
 
-const binary = [];
+    const binary = [];
 
-lines.forEach(line=>{
-    // deal with A-instructions
-    if (line[0] === '@') {
-        const value = Number(line.slice(1));
-        const str = value.toString(2).padStart(16, 0);
-        binary.push(str);
-    }
-    //deal with C-instructions
-    // 111
+    lines.forEach(line => {
+        // deal with A-instructions
+        if (line[0] === '@') {
+            const value = Number(line.slice(1));
+            const str = value.toString(2).padStart(16, 0);
+            binary.push(str);
+        }
+        //deal with C-instructions
+        // 111
 
-    let str = '111';
-    if (line.includes('=')){
-        // typical c-instruction (ALU operation)
-        const [dest, operation] = line.split('=');
+        let str = '111';
+        if (line.includes('=')) {
+            // typical c-instruction (ALU operation)
+            const [dest, operation] = line.split('=');
 
-        str = str + lookupComps(operation);
+            str = str + lookupComps(operation);
 
-        str = str + lookupDest[dest];
-        
-        // no jump
-        str = str + '000';
+            str = str + lookupDest[dest];
 
-        binary.push(str);
-    }
+            // no jump
+            str = str + '000';
 
-    if (line.includes(';')){
-        const [op, jump] = line.split(';');
+            binary.push(str);
+        }
 
-        str = str + lookupComps(op);
+        if (line.includes(';')) {
+            const [op, jump] = line.split(';');
 
-        // dest
-        str = str + '000';
+            str = str + lookupComps(op);
 
-        str = str + lookupJump[jump];
-        
-        binary.push(str);
-    }
-});
+            // dest
+            str = str + '000';
 
-console.log(binary)
+            str = str + lookupJump[jump];
+
+            binary.push(str);
+        }
+    });
+    return binary.join('\n');
+}
+
+const outFileName = process.argv[2] ? process.argv[2].split('.')[0] + '.hack' : 'temp.hack';
+const binary = assemble(assembly);
+fs.writeFileSync(outFileName, binary, 'utf8');
 
 // TODO:
 // 1. handle comments
-// 2. Read and write
+// 2. add symbol handling logic
